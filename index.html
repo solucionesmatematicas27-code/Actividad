@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crucigrama: Descifra el mensaje oculto — Irreducibilidad</title>
+<style>
+  :root{
+    --verde:#22693C; --rojo:#961E1E; --gris:#5A5A5A; --naranja:#C86414; --azul:#1B2A6B;
+    --bg:#ffffff; --card:#faf9f7; --text:#222; --border:#ddd;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg:#1b1b1b; --card:#242424; --text:#eee; --border:#3a3a3a; }
+  }
+  :root[data-theme="dark"]{ --bg:#1b1b1b; --card:#242424; --text:#eee; --border:#3a3a3a; }
+  html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--text);
+    font-family:'Palatino Linotype','Book Antiqua',Georgia,serif; line-height:1.5; }
+  header{ background:var(--azul); color:#fff; padding: calc(18px + env(safe-area-inset-top,0px)) 16px 14px; text-align:center; }
+  header h1{margin:0; font-size:1.25rem;}
+  header p{margin:4px 0 0; font-size:0.88rem; opacity:0.9;}
+  main{max-width:760px; margin:0 auto; padding:16px;}
+
+  /* Pantalla de acceso */
+  #gate{ max-width:420px; margin:60px auto; text-align:center; padding:24px; }
+  #gate .card{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 22px; }
+  #gate h2{ margin-top:0; color:var(--azul); }
+  #gate input{ width:100%; padding:10px; font-size:1rem; border-radius:8px; border:1px solid var(--border);
+    margin:10px 0; text-align:center; font-family:inherit; }
+  #gate input#passInput{ letter-spacing:2px; }
+  #gate button{ padding:10px 24px; border:none; border-radius:8px; background:var(--verde); color:#fff;
+    font-size:1rem; cursor:pointer; font-family:inherit; }
+  #gate .error{ color:var(--rojo); font-size:0.9rem; min-height:1.2em; margin-top:6px; }
+  #juego{ display:none; }
+
+  .instrucciones{ background:var(--verde); color:#fff; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:0.95rem; }
+  .marcador{
+    display:flex; justify-content:space-between; align-items:center; background:var(--azul); color:#fff;
+    border-radius:10px; padding:10px 16px; margin-bottom:12px; font-weight:bold; position:sticky; top:0; z-index:6;
+  }
+  .marcador span.puntos{ font-size:1.15rem; }
+
+  .leaderboard{
+    background:var(--card); border:2px solid var(--azul); border-radius:10px; padding:14px 16px; margin-bottom:16px;
+  }
+  .leaderboard h3{ margin:0 0 8px; color:var(--azul); font-size:1rem; display:flex; align-items:center; gap:6px; }
+  .leaderboard h3 .vivo{ width:8px; height:8px; border-radius:50%; background:#2ecc71; display:inline-block; animation:pulso 1.4s infinite; }
+  @keyframes pulso{ 0%{opacity:1;} 50%{opacity:0.3;} 100%{opacity:1;} }
+  .lb-estado{ font-size:0.85rem; color:var(--gris); }
+  .lb-row{ display:flex; align-items:center; gap:10px; padding:6px 4px; border-bottom:1px solid var(--border); font-size:0.92rem; }
+  .lb-row:last-child{ border-bottom:none; }
+  .lb-row.tu-fila{ background:var(--verde); color:#fff; border-radius:6px; }
+  .lb-pos{ width:28px; text-align:center; font-weight:bold; }
+  .lb-nombre{ flex:1; }
+  .lb-pts{ font-weight:bold; }
+  .lb-vacio{ font-size:0.9rem; color:var(--gris); margin:4px 0; }
+
+  .board{ background:#fdf1e6; border:2px solid var(--naranja); border-radius:10px; padding:14px; margin-bottom:24px; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .board{ background:#3a2a1a; } }
+  :root[data-theme="dark"] .board{ background:#3a2a1a; }
+  .board h3{margin:0 0 10px; color:var(--naranja); font-size:1rem;}
+  .letters{display:flex; flex-wrap:wrap; gap:6px; justify-content:center;}
+  .lettercol{display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .lettercol span{font-size:0.65rem; color:var(--gris);}
+  .letterbox{ width:34px; height:34px; border:2px solid var(--naranja); border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem;
+    background:#fff; color:var(--azul); transition: transform 0.2s ease; }
+  :root[data-theme="dark"] .letterbox{ background:#111; }
+  .letterbox.filled{ transform: scale(1.08); }
+
+  .pregunta{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .pregunta p{margin:0 0 10px; font-size:0.98rem;}
+  .botones{display:flex; gap:10px;}
+  button.vf{ flex:1; padding:10px; border-radius:8px; border:2px solid var(--gris); background:transparent;
+    color:var(--text); font-size:0.95rem; cursor:pointer; font-family:inherit; }
+  button.vf:disabled{ cursor:not-allowed; opacity:0.55; }
+  button.vf.elegida-correcta{ border-color:var(--verde); background:var(--verde); color:#fff; opacity:1; }
+  button.vf.elegida-incorrecta{ border-color:var(--rojo); background:var(--rojo); color:#fff; opacity:1; }
+  .pregunta.correcta{ border-color: var(--verde); }
+  .pregunta.incorrecta{ border-color: var(--rojo); }
+  .feedback{ margin-top:8px; font-size:0.9rem; font-weight:bold; }
+  .feedback.ok{ color: var(--verde); }
+  .feedback.bad{ color: var(--rojo); }
+  .rationale{ margin-top:6px; font-size:0.88rem; color:var(--gris); }
+
+  .msg-final{ display:none; text-align:center; border-radius:10px; padding:18px; margin: 20px 0; font-size:1.15rem; font-weight:bold; }
+  .msg-final.ganador{ background:var(--verde); color:#fff; }
+  .msg-final.fin{ background:var(--gris); color:#fff; }
+
+  .barra{ display:flex; gap:10px; justify-content:center; margin: 18px 0 30px; flex-wrap: wrap; }
+  .barra button{ padding:10px 18px; border-radius:8px; border:none; background:var(--azul); color:#fff;
+    font-family:inherit; font-size:0.95rem; cursor:pointer; }
+  footer{ text-align:center; color:var(--gris); font-size:0.8rem; padding: 10px 16px calc(20px + env(safe-area-inset-bottom,0px)); }
+
+  @media print{
+    header, .instrucciones, .barra, button.vf, .feedback, .rationale, #gate, .leaderboard{ display:none !important; }
+    .marcador{ position: static; }
+    .pregunta{ break-inside: avoid; border:1px solid #999; }
+    body{ background:#fff; color:#000; }
+    .letterbox{ border:1.5px solid #333 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="card">
+    <h2>🔒 Acceso al juego</h2>
+    <p>Escribe tu nombre y la contraseña que te dio tu profesor para comenzar el reto.</p>
+    <input type="text" id="nameInput" placeholder="Tu nombre" autocomplete="off" maxlength="30">
+    <input type="password" id="passInput" placeholder="Contraseña" autocomplete="off">
+    <div class="error" id="passError"></div>
+    <button onclick="validarPassword()">Entrar</button>
+  </div>
+</div>
+
+<div id="juego">
+  <header>
+    <h1>Crucigrama: descifra el mensaje oculto</h1>
+    <p>Criterios de irreducibilidad en 𝕂[X] — Álgebra Moderna II</p>
+  </header>
+  <main>
+    <div class="marcador">
+      <span id="jugadorActual">Jugador</span>
+      <span class="puntos" id="puntosDisplay">0 / 100</span>
+    </div>
+
+    <div class="leaderboard">
+      <h3><span class="vivo"></span> Marcador en vivo</h3>
+      <div class="lb-estado" id="lbEstado">Conectando…</div>
+      <div id="leaderboardBody"></div>
+    </div>
+
+    <div class="instrucciones">
+      Marca <b>Verdadero</b> o <b>Falso</b> en cada afirmación. <b>Cada respuesta queda fija una vez elegida</b>
+      (no se puede cambiar). Cada acierto vale <b>6 puntos</b> y revela una letra. Si aciertas las 15 y
+      descifras el mensaje completo, ganas un bono de <b>10 puntos extra</b> hasta llegar a <b>100 puntos</b>.
+    </div>
+
+    <div class="board">
+      <h3>Tablero de decodificación</h3>
+      <div class="letters" id="letters"></div>
+    </div>
+
+    <div id="preguntas"></div>
+
+    <div class="msg-final" id="mensajeFinal"></div>
+
+    <div class="barra">
+      <button onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+  </main>
+  <footer>Luis Andrés -- UIS, Escuela de Matemáticas.</footer>
+</div>
+
+<script>
+const PASSWORD = "IRRED-2026"; // contraseña de acceso al juego
+
+const preguntas = [
+  {texto:"En 𝕂[X], si 𝕂 es un cuerpo, entonces 𝕂[X] es un dominio de integridad.", correcta:true, letra:"I",
+   razon:"El coeficiente líder del producto de dos polinomios no nulos es el producto de los coeficientes líderes, que nunca se anula en un cuerpo."},
+  {texto:"Todo polinomio no constante en 𝕂[X] tiene siempre una raíz en el propio cuerpo 𝕂.", correcta:false, letra:"R",
+   razon:"Por ejemplo, X²+1 ∈ ℝ[X] no tiene raíz real; solo los cuerpos algebraicamente cerrados garantizan esa propiedad."},
+  {texto:"El teorema de la división euclidiana en 𝕂[X] exige explícitamente que el divisor d(X) sea distinto de cero.", correcta:true, letra:"R",
+   razon:"Sin esa hipótesis, el cociente y el residuo no están garantizados ni son únicos."},
+  {texto:"En la división euclidiana de polinomios, el residuo puede tener grado mayor o igual al del divisor.", correcta:false, letra:"E",
+   razon:"Por definición se exige gr(r) < gr(d); de lo contrario la división no estaría completa."},
+  {texto:"Dos polinomios f(X) y g(X) son relativamente primos si y solo si existen u(X), v(X) tales que u(X)f(X)+v(X)g(X)=1 (Bézout).", correcta:true, letra:"D",
+   razon:"Es la equivalencia central del teorema de Bézout."},
+  {texto:"Si un polinomio irreducible p(X) divide a f(X)g(X), entonces p(X) divide a f(X) o a g(X) (Lema de Euclides).", correcta:true, letra:"U",
+   razon:"Es consecuencia directa del lema de Euclides, obtenido a partir de Bézout."},
+  {texto:"La factorización de un polinomio en irreducibles es única, salvo el orden de los factores.", correcta:false, letra:"C",
+   razon:"La unicidad es salvo el orden Y salvo multiplicación por constantes no nulas; falta esa segunda libertad."},
+  {texto:"El máximo común divisor de dos polinomios siempre puede escribirse como combinación lineal de ambos.", correcta:true, letra:"I",
+   razon:"Es la conclusión del teorema de existencia del mcd."},
+  {texto:"El algoritmo de Euclides calcula el mcd dividiendo sucesivamente cada divisor entre el residuo anterior, hasta residuo cero.", correcta:true, letra:"B",
+   razon:"Así opera el algoritmo; el último residuo no nulo es el mcd."},
+  {texto:"Un polinomio no nulo de grado n puede tener, contando multiplicidades, más de n raíces.", correcta:false, letra:"I",
+   razon:"Un polinomio de grado n tiene, contando multiplicidades, a lo sumo n raíces."},
+  {texto:"a es raíz de p(X) si y solo si (X-a) divide a p(X).", correcta:true, letra:"L",
+   razon:"Es la equivalencia básica entre raíces y factores lineales."},
+  {texto:"Una raíz múltiple a de p(X) cumple p(a)=0 y p'(a)≠0.", correcta:false, letra:"I",
+   razon:"Una raíz múltiple exige p(a)=0 Y p'(a)=0 simultáneamente."},
+  {texto:"Todo polinomio irreducible sobre 𝕂 adquiere una raíz en alguna extensión adecuada de 𝕂.", correcta:true, letra:"D",
+   razon:"Es el teorema de extensión de cuerpos."},
+  {texto:"La derivada de un polinomio solo tiene sentido si se define mediante un límite, por lo que no existe en característica positiva.", correcta:false, letra:"A",
+   razon:"La derivada algebraica se define formalmente a partir de los coeficientes, sin ningún límite; tiene sentido en cualquier cuerpo."},
+  {texto:"La fórmula de Taylor para polinomios requiere poder dividir entre enteros, lo cual está garantizado en característica 0.", correcta:true, letra:"D",
+   razon:"La fórmula de Taylor exige poder dividir por 𝕂, garantizado en característica 0."}
+];
+
+const PUNTOS_POR_ACIERTO = 6;   // 15 x 6 = 90
+const BONO_MENSAJE = 10;        // + bono al descifrar el mensaje completo = 100
+
+// estado[i] = null (sin responder) | {chosen: true/false, correct: true/false}
+const estado = new Array(preguntas.length).fill(null);
+
+let db = null;
+let studentName = '';
+let studentSlug = '';
+
+function slugify(s){
+  const base = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'').slice(0,40);
+  return base || ('jugador-' + Math.random().toString(36).slice(2,7));
+}
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function validarPassword(){
+  const nombre = document.getElementById('nameInput').value.trim();
+  const val = document.getElementById('passInput').value.trim();
+  if(!nombre){
+    document.getElementById('passError').textContent = 'Escribe tu nombre para poder registrar tu puntaje.';
+    return;
+  }
+  if(val !== PASSWORD){
+    document.getElementById('passError').textContent = 'Contraseña incorrecta. Pregúntale a tu profesor.';
+    return;
+  }
+  studentName = nombre.slice(0,30);
+  studentSlug = slugify(studentName);
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('juego').style.display = 'block';
+  document.getElementById('jugadorActual').textContent = '👤 ' + studentName;
+  render();
+  await initDB();
+}
+document.getElementById('passInput').addEventListener('keydown', e => { if(e.key === 'Enter') validarPassword(); });
+document.getElementById('nameInput').addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('passInput').focus(); });
+
+async function initDB(){
+  const estadoEl = document.getElementById('lbEstado');
+  try{
+    if(window.claude && window.claude.use){
+      db = await window.claude.use('db');
+    }
+  }catch(e){ db = null; }
+  if(!db){
+    estadoEl.textContent = 'Marcador compartido no disponible en esta vista — tu puntaje solo se guarda en este dispositivo.';
+    return;
+  }
+  estadoEl.textContent = '';
+  try{
+    db.collection('scores').orderBy('puntos','desc').limit(30).onSnapshot(
+      snap => renderLeaderboard(snap.docs.map(d => d.data())),
+      () => { estadoEl.textContent = 'No se pudo actualizar el marcador en tiempo real.'; }
+    );
+  }catch(e){ estadoEl.textContent = 'No se pudo conectar al marcador en tiempo real.'; }
+}
+
+function renderLeaderboard(filas){
+  const cont = document.getElementById('leaderboardBody');
+  cont.innerHTML = '';
+  if(!filas.length){ cont.innerHTML = '<p class="lb-vacio">Aún no hay puntajes. ¡Sé el primero en responder!</p>'; return; }
+  filas.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row' + (f.slug === studentSlug ? ' tu-fila' : '');
+    const medalla = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : (i+1)+'.';
+    row.innerHTML = `<span class="lb-pos">${medalla}</span><span class="lb-nombre">${escapeHtml(f.name || '—')}</span><span class="lb-pts">${f.puntos}${f.ganador ? ' 🏆' : ''}</span>`;
+    cont.appendChild(row);
+  });
+}
+
+async function actualizarPuntajeDB(puntos, aciertos, ganador){
+  if(!db || !studentSlug) return;
+  try{
+    await db.doc('scores/' + studentSlug).set({
+      name: studentName, slug: studentSlug, puntos, aciertos, ganador: !!ganador, ts: Date.now()
+    });
+  }catch(e){ /* si falla, el juego local sigue funcionando */ }
+}
+
+function calcularPuntaje(){
+  const aciertos = estado.filter(e => e && e.correct).length;
+  let puntos = aciertos * PUNTOS_POR_ACIERTO;
+  const todasRespondidas = estado.every(e => e !== null);
+  const todasCorrectas = estado.every(e => e && e.correct);
+  if(todasRespondidas && todasCorrectas) puntos += BONO_MENSAJE;
+  return {puntos, aciertos, todasRespondidas, todasCorrectas};
+}
+
+function render(){
+  const cont = document.getElementById('preguntas');
+  cont.innerHTML = '';
+  preguntas.forEach((p, i) => {
+    const e = estado[i];
+    const div = document.createElement('div');
+    div.className = 'pregunta' + (e ? (e.correct ? ' correcta' : ' incorrecta') : '');
+    div.id = 'preg-' + i;
+
+    const vBtnClase = e && e.chosen === true ? (e.correct ? 'elegida-correcta' : 'elegida-incorrecta') : '';
+    const fBtnClase = e && e.chosen === false ? (e.correct ? 'elegida-correcta' : 'elegida-incorrecta') : '';
+    const bloqueado = e !== null;
+
+    div.innerHTML = `
+      <p><b>${i+1}.</b> ${p.texto}</p>
+      <div class="botones">
+        <button class="vf ${vBtnClase}" ${bloqueado?'disabled':''} onclick="responder(${i}, true)">Verdadero</button>
+        <button class="vf ${fBtnClase}" ${bloqueado?'disabled':''} onclick="responder(${i}, false)">Falso</button>
+      </div>
+      <div class="feedback ${e ? (e.correct?'ok':'bad') : ''}">
+        ${e ? (e.correct ? '✓ ¡Correcto! (+' + PUNTOS_POR_ACIERTO + ' pts) Letra revelada: ' + p.letra : '✗ Incorrecto. Respuesta bloqueada.') : ''}
+      </div>
+      ${e && e.correct ? `<div class="rationale">${p.razon}</div>` : ''}
+    `;
+    cont.appendChild(div);
+  });
+  renderTablero();
+}
+
+function renderTablero(){
+  const letters = document.getElementById('letters');
+  letters.innerHTML = '';
+  preguntas.forEach((p, i) => {
+    const e = estado[i];
+    const col = document.createElement('div');
+    col.className = 'lettercol';
+    const box = document.createElement('div');
+    box.className = 'letterbox' + (e && e.correct ? ' filled' : '');
+    box.textContent = (e && e.correct) ? p.letra : '';
+    const span = document.createElement('span');
+    span.textContent = i+1;
+    col.appendChild(box);
+    col.appendChild(span);
+    letters.appendChild(col);
+  });
+
+  const {puntos, aciertos, todasRespondidas, todasCorrectas} = calcularPuntaje();
+  document.getElementById('puntosDisplay').textContent = puntos + ' / 100';
+
+  const el = document.getElementById('mensajeFinal');
+  const ganador = todasRespondidas && todasCorrectas;
+  if(ganador){
+    const msg = preguntas.map(p => p.letra).join('');
+    el.style.display = 'block';
+    el.className = 'msg-final ganador';
+    el.textContent = '🏆 ¡GANADOR! Mensaje descifrado: ' + msg + ' — 100 puntos';
+  } else if(todasRespondidas){
+    el.style.display = 'block';
+    el.className = 'msg-final fin';
+    el.textContent = 'Actividad terminada. Puntaje final: ' + puntos + ' / 100';
+  } else {
+    el.style.display = 'none';
+  }
+
+  actualizarPuntajeDB(puntos, aciertos, ganador);
+}
+
+function responder(i, valor){
+  if(estado[i] !== null) return; // ya respondida: no se puede cambiar
+  estado[i] = { chosen: valor, correct: (valor === preguntas[i].correcta) };
+  render();
+  document.getElementById('preg-'+i).scrollIntoView({behavior:'smooth', block:'center'});
+}
+</script>
+</body>
+</html>
